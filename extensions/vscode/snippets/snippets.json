@@ -43,12 +43,35 @@
       ")"
     ]
   },
+  "bloclistenertree": {
+    "scope": "dart",
+    "prefix": "bloclistenertree",
+    "body": [
+      "BlocListenerTree(",
+      "\tblocListeners: [",
+      "\t\tBlocListener<${1:MyEvent}, ${2:MyState}>(",
+      "\t\t\tbloc: ${3:_myBloc},",
+      "\t\t\tlistener: (BuildContext context, ${2:MyState} state) {",
+      "\t\t\t\t${4:// TODO: implement listener}",
+      "\t\t\t},",
+      "\t\t),",
+      "\t\tBlocListener<${5:MyOtherEvent}, ${6:MyOtherState}>(",
+      "\t\t\tbloc: ${7:_myOtherBloc},",
+      "\t\t\tlistener: (BuildContext context, ${6:MyOtherState} state) {",
+      "\t\t\t\t${8:// TODO: implement listener}",
+      "\t\t\t},",
+      "\t\t),",
+      "\t],",
+      "\tchild: ${9:Container()},",
+      ")"
+    ]
+  },
   "blocprovider": {
     "scope": "dart",
     "prefix": "blocprovider",
     "body": [
       "BlocProvider(",
-      "\tbloc: ${1:MyBloc},",
+      "\tbuilder: (BuildContext context) => ${1:MyBloc}(),",
       "\tchild: ${2:Container()},",
       ")"
     ]
@@ -59,10 +82,14 @@
     "body": [
       "BlocProviderTree(",
       "\tblocProviders: [",
-      "\t\tBlocProvider<${1:MyBloc}>(bloc: ${3:_myBloc}),",
-      "\t\tBlocProvider<${4:MyOtherBloc}>(bloc: ${5:_myOtherBloc}),",
+      "\t\tBlocProvider<${1:MyBloc}>(",
+      "\t\t\tbuilder: (BuildContext context) => ${1:MyBloc}(),",
+      "\t\t),",
+      "\t\tBlocProvider<${2:MyOtherBloc}>(",
+      "\t\t\tbuilder: (BuildContext context) => ${2:MyOtherBloc}(),",
+      "\t\t),",
       "\t],",
-      "\tchild: ${6:Container()},",
+      "\tchild: ${3:Container()},",
       ")"
     ]
   },
@@ -74,15 +101,21 @@
       "",
       "class ${1:MyBlocDelegate} extends BlocDelegate {",
       "\t@override",
-      "\tvoid onError(Object error, StackTrace stacktrace) {",
-      "\t\tsuper.onError(error, stacktrace);",
-      "\t\t${2:// TODO: implement onError}",
+      "\tvoid onEvent(Bloc bloc, Object event) {",
+      "\t\tsuper.onEvent(bloc, event);",
+      "\t\t${2:// TODO: implement onEvent}",
       "\t}",
       "",
       "\t@override",
-      "\tvoid onTransition(Transition transition) {",
-      "\t\tsuper.onTransition(transition);",
-      "\t\t${3:// TODO: implement onTransition}",
+      "\tvoid onError(Bloc bloc, Object error, StackTrace stacktrace) {",
+      "\t\tsuper.onError(bloc, error, stacktrace);",
+      "\t\t${3:// TODO: implement onError}",
+      "\t}",
+      "",
+      "\t@override",
+      "\tvoid onTransition(Bloc bloc, Transition transition) {",
+      "\t\tsuper.onTransition(bloc, transition);",
+      "\t\t${4:// TODO: implement onTransition}",
       "\t}",
       "}"
     ]

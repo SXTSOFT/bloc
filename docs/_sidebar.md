@@ -10,6 +10,7 @@
 
   - Flutter
     - [Counter](fluttercountertutorial.md)
+    - [Timer](fluttertimertutorial.md)
     - [Infinite List](flutterinfinitelisttutorial.md)
     - [Login](flutterlogintutorial.md)
     - [Weather](flutterweathertutorial.md)
@@ -23,7 +24,9 @@
 - Recipes
 
   - Flutter
-    - [BlocListener](recipesbloclistener.md)
+    - [Show SnackBar](recipesfluttershowsnackbar.md)
+    - [Navigation](recipesflutternavigation.md)
+    - [Bloc Access](recipesflutterblocaccess.md)
 
 - Tools
 

@@ -13,50 +13,64 @@ void main() {
   // BlocSupervisor oversees Blocs and delegates to BlocDelegate.
   // We can set the BlocSupervisor's delegate to an instance of `SimpleBlocDelegate`.
   // This will allow us to handle all transitions and errors in SimpleBlocDelegate.
-  BlocSupervisor().delegate = SimpleBlocDelegate();
-  runApp(TodosApp());
+  BlocSupervisor.delegate = SimpleBlocDelegate();
+  runApp(
+    BlocProvider(
+      builder: (context) {
+        return TodosBloc(
+          todosRepository: const TodosRepositoryFlutter(
+            fileStorage: const FileStorage(
+              '__flutter_bloc_app__',
+              getApplicationDocumentsDirectory,
+            ),
+          ),
+        )..dispatch(LoadTodos());
+      },
+      child: TodosApp(),
+    ),
+  );
 }
 
 class TodosApp extends StatelessWidget {
-  final todosBloc = TodosBloc(
-    todosRepository: const TodosRepositoryFlutter(
-      fileStorage: const FileStorage(
-        '__flutter_bloc_app__',
-        getApplicationDocumentsDirectory,
-      ),
-    ),
-  );
-
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      bloc: todosBloc,
-      child: MaterialApp(
-        title: FlutterBlocLocalizations().appTitle,
-        theme: ArchSampleTheme.theme,
-        localizationsDelegates: [
-          ArchSampleLocalizationsDelegate(),
-          FlutterBlocLocalizationsDelegate(),
-        ],
-        routes: {
-          ArchSampleRoutes.home: (context) {
-            return HomeScreen(
-              onInit: () => todosBloc.dispatch(LoadTodos()),
-            );
-          },
-          ArchSampleRoutes.addTodo: (context) {
-            return AddEditScreen(
-              key: ArchSampleKeys.addTodoScreen,
-              onSave: (task, note) {
-                todosBloc.dispatch(
-                  AddTodo(Todo(task, note: note)),
-                );
-              },
-              isEditing: false,
-            );
-          },
+    final todosBloc = BlocProvider.of<TodosBloc>(context);
+    return MaterialApp(
+      title: FlutterBlocLocalizations().appTitle,
+      theme: ArchSampleTheme.theme,
+      localizationsDelegates: [
+        ArchSampleLocalizationsDelegate(),
+        FlutterBlocLocalizationsDelegate(),
+      ],
+      routes: {
+        ArchSampleRoutes.home: (context) {
+          return BlocProviderTree(
+            blocProviders: [
+              BlocProvider<TabBloc>(
+                builder: (context) => TabBloc(),
+              ),
+              BlocProvider<FilteredTodosBloc>(
+                builder: (context) => FilteredTodosBloc(todosBloc: todosBloc),
+              ),
+              BlocProvider<StatsBloc>(
+                builder: (context) => StatsBloc(todosBloc: todosBloc),
+              ),
+            ],
+            child: HomeScreen(),
+          );
         },
-      ),
+        ArchSampleRoutes.addTodo: (context) {
+          return AddEditScreen(
+            key: ArchSampleKeys.addTodoScreen,
+            onSave: (task, note) {
+              todosBloc.dispatch(
+                AddTodo(Todo(task, note: note)),
+              );
+            },
+            isEditing: false,
+          );
+        },
+      },
     );
   }
 }

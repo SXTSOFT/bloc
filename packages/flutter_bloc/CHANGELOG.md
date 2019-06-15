@@ -1,3 +1,31 @@
+# 0.17.0
+
+Update `BlocProvider` to automatically `dispose` the provided bloc ([#349](https://github.com/felangel/bloc/pull/349)) and Documentation Updates.
+
+# 0.16.0
+
+Update `BlocProvider` to expose `builder` and `dispose` ([#344](https://github.com/felangel/bloc/pull/344) and [#347](https://github.com/felangel/bloc/pull/347)) and Documentation Updates
+
+# 0.15.1
+
+Fix `null` initial `previousState` in `BlocBuilder` `condition` ([#328](https://github.com/felangel/bloc/issues/328)) and Documentation Updates
+
+# 0.15.0
+
+Added optional `condition` to `BlocBuilder` to control widget rebuilds ([#315](https://github.com/felangel/bloc/issues/315)) and Documentation Updates
+
+# 0.14.0
+
+Updated to `bloc: ^0.14.0` and Documentation Updates
+
+# 0.13.0
+
+Updated to `bloc: ^0.13.0` and Documentation Updates
+
+# 0.12.0
+
+Added `BlocListenerTree` and Documentation Updates
+
 # 0.11.1
 
 Broaden Dart version range and Minor Documentation Updates

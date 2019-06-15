@@ -7,57 +7,54 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SimpleBlocDelegate extends BlocDelegate {
   @override
-  void onTransition(Transition transition) {
-    super.onTransition(transition);
+  void onEvent(Bloc bloc, Object event) {
+    super.onEvent(bloc, event);
+    print(event);
+  }
+
+  @override
+  void onTransition(Bloc bloc, Transition transition) {
+    super.onTransition(bloc, transition);
     print(transition);
   }
 
   @override
-  void onError(Object error, StackTrace stacktrace) {
-    super.onError(error, stacktrace);
+  void onError(Bloc bloc, Object error, StackTrace stacktrace) {
+    super.onError(bloc, error, stacktrace);
     print(error);
   }
 }
 
 void main() {
-  BlocSupervisor().delegate = SimpleBlocDelegate();
-  runApp(App());
+  BlocSupervisor.delegate = SimpleBlocDelegate();
+  runApp(
+    BlocProviderTree(
+      blocProviders: [
+        BlocProvider<CounterBloc>(
+          builder: (context) => CounterBloc(),
+        ),
+        BlocProvider<ThemeBloc>(
+          builder: (context) => ThemeBloc(),
+        )
+      ],
+      child: App(),
+    ),
+  );
 }
 
-class App extends StatefulWidget {
-  @override
-  State<StatefulWidget> createState() => _AppState();
-}
-
-class _AppState extends State<App> {
-  final CounterBloc _counterBloc = CounterBloc();
-  final ThemeBloc _themeBloc = ThemeBloc();
-
+class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return BlocProviderTree(
-      blocProviders: [
-        BlocProvider<CounterBloc>(bloc: _counterBloc),
-        BlocProvider<ThemeBloc>(bloc: _themeBloc)
-      ],
-      child: BlocBuilder(
-        bloc: _themeBloc,
-        builder: (_, ThemeData theme) {
-          return MaterialApp(
-            title: 'Flutter Demo',
-            home: CounterPage(),
-            theme: theme,
-          );
-        },
-      ),
+    return BlocBuilder(
+      bloc: BlocProvider.of<ThemeBloc>(context),
+      builder: (_, ThemeData theme) {
+        return MaterialApp(
+          title: 'Flutter Demo',
+          home: CounterPage(),
+          theme: theme,
+        );
+      },
     );
-  }
-
-  @override
-  void dispose() {
-    _counterBloc.dispose();
-    _themeBloc.dispose();
-    super.dispose();
   }
 }
 

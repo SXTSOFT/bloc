@@ -10,14 +10,20 @@ import 'package:flutter_weather/blocs/blocs.dart';
 
 class SimpleBlocDelegate extends BlocDelegate {
   @override
-  onTransition(Transition transition) {
-    super.onTransition(transition);
+  void onEvent(Bloc bloc, Object event) {
+    super.onEvent(bloc, event);
+    print(event);
+  }
+
+  @override
+  onTransition(Bloc bloc, Transition transition) {
+    super.onTransition(bloc, transition);
     print(transition);
   }
 
   @override
-  void onError(Object error, StackTrace stacktrace) {
-    super.onError(error, stacktrace);
+  void onError(Bloc bloc, Object error, StackTrace stacktrace) {
+    super.onError(bloc, error, stacktrace);
     print(error);
   }
 }
@@ -28,12 +34,23 @@ void main() {
       httpClient: http.Client(),
     ),
   );
-
-  BlocSupervisor().delegate = SimpleBlocDelegate();
-  runApp(App(weatherRepository: weatherRepository));
+  BlocSupervisor.delegate = SimpleBlocDelegate();
+  runApp(
+    BlocProviderTree(
+      blocProviders: [
+        BlocProvider<ThemeBloc>(
+          builder: (context) => ThemeBloc(),
+        ),
+        BlocProvider<SettingsBloc>(
+          builder: (context) => SettingsBloc(),
+        ),
+      ],
+      child: App(weatherRepository: weatherRepository),
+    ),
+  );
 }
 
-class App extends StatefulWidget {
+class App extends StatelessWidget {
   final WeatherRepository weatherRepository;
 
   App({Key key, @required this.weatherRepository})
@@ -41,39 +58,20 @@ class App extends StatefulWidget {
         super(key: key);
 
   @override
-  State<App> createState() => _AppState();
-}
-
-class _AppState extends State<App> {
-  ThemeBloc _themeBloc = ThemeBloc();
-  SettingsBloc _settingsBloc = SettingsBloc();
-
-  @override
   Widget build(BuildContext context) {
-    return BlocProviderTree(
-      blocProviders: [
-        BlocProvider<ThemeBloc>(bloc: _themeBloc),
-        BlocProvider<SettingsBloc>(bloc: _settingsBloc),
-      ],
-      child: BlocBuilder(
-        bloc: _themeBloc,
-        builder: (_, ThemeState themeState) {
-          return MaterialApp(
-            title: 'Flutter Weather',
-            theme: themeState.theme,
-            home: Weather(
-              weatherRepository: widget.weatherRepository,
-            ),
-          );
-        },
-      ),
+    return BlocBuilder(
+      bloc: BlocProvider.of<ThemeBloc>(context),
+      builder: (_, ThemeState themeState) {
+        return MaterialApp(
+          title: 'Flutter Weather',
+          theme: themeState.theme,
+          home: BlocProvider(
+            builder: (context) =>
+                WeatherBloc(weatherRepository: weatherRepository),
+            child: Weather(),
+          ),
+        );
+      },
     );
-  }
-
-  @override
-  void dispose() {
-    _themeBloc.dispose();
-    _settingsBloc.dispose();
-    super.dispose();
   }
 }

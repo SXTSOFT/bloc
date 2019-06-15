@@ -7,14 +7,17 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class MyApp extends StatelessWidget {
-  final CounterBloc _bloc;
+  final CounterBloc Function(BuildContext context) _builder;
+  final bool _dispose;
   final Widget _child;
 
   const MyApp({
     Key key,
-    @required CounterBloc bloc,
+    @required CounterBloc Function(BuildContext context) builder,
+    bool dispose,
     @required Widget child,
-  })  : _bloc = bloc,
+  })  : _builder = builder,
+        _dispose = dispose,
         _child = child,
         super(key: key);
 
@@ -22,7 +25,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: BlocProvider<CounterBloc>(
-        bloc: _bloc,
+        builder: _builder,
+        dispose: _dispose,
         child: _child,
       ),
     );
@@ -54,7 +58,7 @@ class _MyStatefulAppState extends State<MyStatefulApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: BlocProvider<CounterBloc>(
-        bloc: bloc,
+        builder: (context) => bloc,
         child: Scaffold(
           appBar: AppBar(
             title: Text('Counter'),
@@ -132,10 +136,29 @@ class CounterPage extends StatelessWidget {
   }
 }
 
+class RoutePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: RaisedButton(
+        key: Key('route_button'),
+        onPressed: () {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute<Widget>(builder: (context) => Container()),
+          );
+        },
+      ),
+    );
+  }
+}
+
 enum CounterEvent { increment, decrement }
 
 class CounterBloc extends Bloc<CounterEvent, int> {
   int get initialState => 0;
+  Function onDispose;
+
+  CounterBloc({this.onDispose});
 
   @override
   Stream<int> mapEventToState(CounterEvent event) async* {
@@ -159,6 +182,12 @@ class CounterBloc extends Bloc<CounterEvent, int> {
   @override
   int get hashCode =>
       initialState.hashCode ^ mapEventToState.hashCode ^ transform.hashCode;
+
+  @override
+  void dispose() {
+    onDispose?.call();
+    super.dispose();
+  }
 }
 
 class SimpleBloc extends Bloc<dynamic, String> {
@@ -173,40 +202,42 @@ class SimpleBloc extends Bloc<dynamic, String> {
 
 void main() {
   group('BlocProvider', () {
-    testWidgets('throws if initialized with no bloc and no child',
+    testWidgets('throws if initialized with no builder',
         (WidgetTester tester) async {
       await tester.pumpWidget(MyApp(
-        bloc: null,
-        child: null,
-      ));
-      expect(tester.takeException(), isInstanceOf<AssertionError>());
-    });
-
-    testWidgets('throws if initialized with no bloc',
-        (WidgetTester tester) async {
-      final CounterPage _child = CounterPage();
-      await tester.pumpWidget(MyApp(
-        bloc: null,
-        child: _child,
+        builder: null,
+        child: CounterPage(),
       ));
       expect(tester.takeException(), isInstanceOf<AssertionError>());
     });
 
     testWidgets('throws if initialized with no child',
         (WidgetTester tester) async {
-      final CounterBloc _bloc = CounterBloc();
       await tester.pumpWidget(MyApp(
-        bloc: _bloc,
+        builder: (context) => CounterBloc(),
         child: null,
       ));
       expect(tester.takeException(), isInstanceOf<AssertionError>());
     });
 
+    testWidgets('throws FlutterError if initialized with invalid builder',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(MyApp(
+        builder: (context) => null,
+        child: CounterPage(),
+      ));
+      final dynamic exception = tester.takeException();
+      final String message =
+          'BlocProvider\'s builder method did not return a Bloc.';
+      expect(exception, isInstanceOf<FlutterError>());
+      expect((exception as FlutterError).message, message);
+    });
+
     testWidgets('passes bloc to children', (WidgetTester tester) async {
-      final CounterBloc _bloc = CounterBloc();
+      final _builder = (BuildContext context) => CounterBloc();
       final CounterPage _child = CounterPage();
       await tester.pumpWidget(MyApp(
-        bloc: _bloc,
+        builder: _builder,
         child: _child,
       ));
 
@@ -215,6 +246,80 @@ void main() {
 
       final Text _counterText = _counterFinder.evaluate().first.widget as Text;
       expect(_counterText.data, '0');
+    });
+
+    testWidgets('calls dispose on bloc automatically',
+        (WidgetTester tester) async {
+      bool disposeCalled = false;
+      final _builder = (BuildContext context) => CounterBloc(
+            onDispose: () {
+              disposeCalled = true;
+            },
+          );
+      final Widget _child = RoutePage();
+      await tester.pumpWidget(MyApp(
+        builder: _builder,
+        child: _child,
+      ));
+
+      final Finder _routeButtonFinder = find.byKey((Key('route_button')));
+      expect(_routeButtonFinder, findsOneWidget);
+      expect(disposeCalled, false);
+
+      await tester.tap(_routeButtonFinder);
+      await tester.pumpAndSettle();
+
+      expect(disposeCalled, true);
+    });
+
+    testWidgets('calls dispose on bloc when dispose = true',
+        (WidgetTester tester) async {
+      bool disposeCalled = false;
+      final _builder = (BuildContext context) => CounterBloc(
+            onDispose: () {
+              disposeCalled = true;
+            },
+          );
+      final Widget _child = RoutePage();
+      await tester.pumpWidget(MyApp(
+        builder: _builder,
+        dispose: true,
+        child: _child,
+      ));
+
+      final Finder _routeButtonFinder = find.byKey((Key('route_button')));
+      expect(_routeButtonFinder, findsOneWidget);
+      expect(disposeCalled, false);
+
+      await tester.tap(_routeButtonFinder);
+      await tester.pumpAndSettle();
+
+      expect(disposeCalled, true);
+    });
+
+    testWidgets('does not dispose when dispose = false',
+        (WidgetTester tester) async {
+      bool disposeCalled = false;
+      final _builder = (BuildContext context) => CounterBloc(
+            onDispose: () {
+              disposeCalled = true;
+            },
+          );
+      final Widget _child = RoutePage();
+      await tester.pumpWidget(MyApp(
+        builder: _builder,
+        dispose: false,
+        child: _child,
+      ));
+
+      final Finder _routeButtonFinder = find.byKey((Key('route_button')));
+      expect(_routeButtonFinder, findsOneWidget);
+      expect(disposeCalled, false);
+
+      await tester.tap(_routeButtonFinder);
+      await tester.pumpAndSettle();
+
+      expect(disposeCalled, false);
     });
 
     testWidgets(

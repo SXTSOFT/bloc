@@ -11,8 +11,15 @@ abstract class Bloc<Event, State> {
 
   BehaviorSubject<State> _stateSubject;
 
+  /// Returns [Stream] of [Event]s.
+  /// When an [Event] is dispatched, it is added to the [Stream].
+  @Deprecated(
+    'Will be removed in v0.15.0. Logic should not be written in response to Events. Please refer to onEvent in the Bloc and BlocDelegate classes for analytics.',
+  )
+  Stream<Event> get event => _eventSubject.stream;
+
   /// Returns [Stream] of [State]s.
-  /// Consumed by the presentation layer.
+  /// Usually consumed by the presentation layer.
   Stream<State> get state => _stateSubject.stream;
 
   /// Returns the [State] before any [Event]s have been `dispatched`.
@@ -26,10 +33,14 @@ abstract class Bloc<Event, State> {
     _bindStateSubject();
   }
 
+  /// Called whenever an [Event] is dispatched to the [Bloc].
+  /// A great spot to add logging/analytics at the individual [Bloc] level.
+  void onEvent(Event event) => null;
+
   /// Called whenever a [Transition] occurs with the given [Transition].
   /// A [Transition] occurs when a new [Event] is dispatched and `mapEventToState` executed.
   /// `onTransition` is called before a [Bloc]'s [State] has been updated.
-  /// A great spot to add logging/analytics.
+  /// A great spot to add logging/analytics at the individual [Bloc] level.
   void onTransition(Transition<Event, State> transition) => null;
 
   /// Called whenever an [Exception] is thrown within `mapEventToState`.
@@ -46,6 +57,8 @@ abstract class Bloc<Event, State> {
   /// as well as the [BlocDelegate] level.
   void dispatch(Event event) {
     try {
+      BlocSupervisor.delegate.onEvent(this, event);
+      onEvent(event);
       _eventSubject.sink.add(event);
     } catch (error) {
       _handleError(error);
@@ -56,6 +69,8 @@ abstract class Bloc<Event, State> {
   /// This method should be called when a [Bloc] is no longer needed.
   /// Once `dispose` is called, events that are `dispatched` will not be
   /// processed and will result in an error being passed to `onError`.
+  /// In addition, if `dispose` is called while [Event]s are still being processed,
+  /// any [State]s yielded after are ignored and will not result in a [Transition].
   @mustCallSuper
   void dispose() {
     _eventSubject.close();
@@ -112,13 +127,13 @@ abstract class Bloc<Event, State> {
       return mapEventToState(currentEvent).handleError(_handleError);
     }).forEach(
       (State nextState) {
-        if (currentState == nextState) return;
+        if (currentState == nextState || _stateSubject.isClosed) return;
         final transition = Transition(
           currentState: currentState,
           event: currentEvent,
           nextState: nextState,
         );
-        BlocSupervisor().delegate?.onTransition(transition);
+        BlocSupervisor.delegate.onTransition(this, transition);
         onTransition(transition);
         _stateSubject.add(nextState);
       },
@@ -126,7 +141,7 @@ abstract class Bloc<Event, State> {
   }
 
   void _handleError(Object error, [StackTrace stacktrace]) {
+    BlocSupervisor.delegate.onError(this, error, stacktrace);
     onError(error, stacktrace);
-    BlocSupervisor().delegate?.onError(error, stacktrace);
   }
 }

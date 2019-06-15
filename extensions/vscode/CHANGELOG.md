@@ -1,3 +1,35 @@
+# 0.8.0
+
+Update Snippets for:
+
+- `BlocProvider`
+- `BlocProviderTree`
+
+to support changes in flutter_bloc `v0.17.0`
+
+# 0.7.0
+
+Update Snippets for:
+
+- `BlocProvider`
+- `BlocProviderTree`
+
+to support changes in flutter_bloc `v0.16.0`
+
+# 0.6.2
+
+Updated `BlocDelegate` snippet to support changes in bloc `v0.13.0`
+
+# 0.6.1
+
+Bloc generation does not overwrite existing bloc files; it attempts to merge instead.
+
+# 0.6.0
+
+Added Snippets for:
+
+- `BlocListenerTree`
+
 # 0.5.0
 
 Added Snippets for:

@@ -1,3 +1,28 @@
+# 0.14.2
+
+- Deprecated Bloc `event` Stream ([#326](https://github.com/felangel/bloc/issues/326))
+- Documentation Updates
+
+# 0.14.1
+
+Internal `BlocDelegate` update and Documentation Updates.
+
+# 0.14.0
+
+`BlocDelegate` initialization improvements and Documentation Updates.
+
+- `BlocSupervisor().delegate = ...` is now `BlocSupervisor.delegate = ...` ([#304](https://github.com/felangel/bloc/issues/304)).
+
+# 0.13.0
+
+`Bloc` and `BlocDelegate` Improvements, new Features, and Documentation Updates.
+
+- Improved `dispose` to ignore pending events ([#257](https://github.com/felangel/bloc/issues/257)).
+- Exposed `event` stream on `Bloc` similar to `state` stream to expose a `Stream` of `dispatched` events ([#259](https://github.com/felangel/bloc/issues/259)).
+- Update to use `rxdart` version `^0.22.0` ([#265](https://github.com/felangel/bloc/issues/265)).
+- `BlocDelegate` methods include a reference to the `Bloc` instance ([#259](https://github.com/felangel/bloc/issues/259)).
+- Added `onEvent` to `Bloc` and `BlocDelegate` ([#259](https://github.com/felangel/bloc/issues/259)).
+
 # 0.12.0
 
 Updated `transform` to enable advanced event filtering and processing and Documentation Updates.

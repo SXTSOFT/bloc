@@ -31,11 +31,35 @@ BlocBuilder(
 )
 ```
 
-**BlocProvider** is a Flutter widget which provides a bloc to its children via `BlocProvider.of<T>(context)`. It is used as a DI widget so that a single instance of a bloc can be provided to multiple widgets within a subtree.
+If you want fine-grained control over when the builder function is called you can provide an optional `condition` to `BlocBuilder`. The `condition` takes the previous bloc state and current bloc state and returns a boolean. If `condition` returns true, `builder` will be called with `currentState` and the widget will rebuild. If `condition` returns false, `builder` will not be called with `currentState` and no rebuild will occur.
 
 ```dart
-BlocProvider(
+BlocBuilder(
   bloc: BlocA(),
+  condition: (previousState, currentState) {
+    // return true/false to determine whether or not
+    // to rebuild the widget with currentState
+  },
+  builder: (context, state) {
+    // return widget here based on BlocA's state
+  }
+)
+```
+
+**BlocProvider** is a Flutter widget which provides a bloc to its children via `BlocProvider.of<T>(context)`. It is used as a DI widget so that a single instance of a bloc can be provided to multiple widgets within a subtree. By default, `BlocProvider` automatically disposes the provided bloc when the `BlocProvider` widget is disposed. In a few edge cases, such as when using `BlocProvider` to provide an existing bloc to another route, it might be necessary to prevent automatic disposal of the bloc. In those cases, the `dispose` property can be set to `false`.
+
+```dart
+// Automatically disposes the instance of BlocA
+// Recommended usage for most cases.
+BlocProvider(
+  builder: (BuildContext context) => BlocA(),
+  child: ChildA(),
+);
+
+// Does not automatically dispose the instance of BlocA.
+BlocProvider(
+  builder: (BuildContext context) => BlocA(),
+  dispose: false,
   child: ChildA(),
 );
 ```
@@ -52,15 +76,15 @@ By using `BlocProviderTree` we can go from:
 
 ```dart
 BlocProvider<BlocA>(
-   bloc: BlocA(),
-   child: BlocProvider<BlocB>(
-     bloc: BlocB(),
-     child: BlocProvider<BlocC>(
-       value: BlocC(),
-       child: ChildA(),
-     )
-   )
- )
+  builder: (BuildContext context) => BlocA(),
+  child: BlocProvider<BlocB>(
+    builder: (BuildContext context) => BlocB(),
+    child: BlocProvider<BlocC>(
+      builder: (BuildContext context) => BlocC(),
+      child: ChildA(),
+    )
+  )
+)
 ```
 
 to:
@@ -68,9 +92,15 @@ to:
 ```dart
 BlocProviderTree(
   blocProviders: [
-    BlocProvider<BlocA>(bloc: BlocA()),
-    BlocProvider<BlocB>(bloc: BlocB()),
-    BlocProvider<BlocC>(bloc: BlocC()),
+    BlocProvider<BlocA>(
+      builder: (BuildContext context) => BlocA(),
+    ),
+    BlocProvider<BlocB>(
+      builder: (BuildContext context) => BlocB(),
+    ),
+    BlocProvider<BlocC>(
+      builder: (BuildContext context) => BlocC(),
+    ),
   ],
   child: ChildA(),
 )
@@ -105,6 +135,48 @@ BlocListener(
       }
     },
   }
+)
+```
+
+**BlocListenerTree** is a Flutter widget that merges multiple `BlocListener` widgets into one.
+`BlocListenerTree` improves the readability and eliminates the need to nest multiple `BlocListeners`.
+By using `BlocListenerTree` we can go from:
+
+```dart
+BlocListener<BlocAEvent, BlocAState>(
+  bloc: BlocA(),
+  listener: (BuildContext context, BlocAState state) {},
+  child: BlocListener<BlocBEvent, BlocBState>(
+    bloc: BlocB(),
+    listener: (BuildContext context, BlocBState state) {},
+    child: BlocListener<BlocCEvent, BlocCState>(
+      bloc: BlocC(),
+      listener: (BuildContext context, BlocCState state) {},
+      child: ChildA(),
+    ),
+  ),
+)
+```
+
+to:
+
+```dart
+BlocListenerTree(
+  blocListeners: [
+    BlocListener<BlocAEvent, BlocAState>(
+      bloc: BlocA(),
+      listener: (BuildContext context, BlocAState state) {},
+    ),
+    BlocListener<BlocBEvent, BlocBState>(
+      bloc: BlocB(),
+      listener: (BuildContext context, BlocBState state) {},
+    ),
+    BlocListener<BlocCEvent, BlocCState>(
+      bloc: BlocC(),
+      listener: (BuildContext context, BlocCState state) {},
+    ),
+  ],
+  child: ChildA(),
 )
 ```
 
@@ -198,10 +270,11 @@ At this point we have successfully separated our presentational layer from our b
 - [Bloc with Stream](https://github.com/felangel/bloc/tree/master/examples/flutter_bloc_with_stream) - an example of how to hook up a `bloc` to a `Stream` and update the UI in response to data from the `Stream`.
 - [Infinite List](https://felangel.github.io/bloc/#/flutterinfinitelisttutorial) - an example of how to use the `bloc` and `flutter_bloc` packages to implement an infinite scrolling list.
 - [Login Flow](https://felangel.github.io/bloc/#/flutterlogintutorial) - an example of how to use the `bloc` and `flutter_bloc` packages to implement a Login Flow.
-- [Firebase Login](https://github.com/felangel/bloc/tree/master/examples/flutter_firebase_login) - an example of how to use the `bloc` and `flutter_bloc` packages to implement login via Firebase.
+- [Firebase Login](https://felangel.github.io/bloc/#/flutterfirebaselogintutorial) - an example of how to use the `bloc` and `flutter_bloc` packages to implement login via Firebase.
 - [Github Search](https://felangel.github.io/bloc/#/flutterangulargithubsearch) - an example of how to create a Github Search Application using the `bloc` and `flutter_bloc` packages.
 - [Weather](https://felangel.github.io/bloc/#/flutterweathertutorial) - an example of how to create a Weather Application using the `bloc` and `flutter_bloc` packages. The app uses a `RefreshIndicator` to implement "pull-to-refresh" as well as dynamic theming.
 - [Todos](https://felangel.github.io/bloc/#/fluttertodostutorial) - an example of how to create a Todos Application using the `bloc` and `flutter_bloc` packages.
+- [Timer](https://felangel.github.io/bloc/#/fluttertimertutorial) - an example of how to create a Timer using the `bloc` and `flutter_bloc` packages.
 
 ### Maintainers
 

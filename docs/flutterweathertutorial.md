@@ -28,7 +28,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_bloc: ^0.11.0
+  flutter_bloc: ^0.17.0
   http: ^0.12.0
   equatable: ^0.2.0
 
@@ -511,6 +511,8 @@ This file can live in our repository folder. So go ahead and create a file calle
 Our `WeatherRepository` is quite simple and should look something like this:
 
 ```dart
+import 'dart:async';
+
 import 'package:meta/meta.dart';
 
 import 'package:flutter_weather/repositories/weather_api_client.dart';
@@ -683,8 +685,8 @@ import 'package:bloc/bloc.dart';
 
 class SimpleBlocDelegate extends BlocDelegate {
   @override
-  onTransition(Transition transition) {
-    super.onTransition(transition);
+  onTransition(Bloc bloc, Transition transition) {
+    super.onTransition(bloc, transition);
     print(transition);
   }
 }
@@ -694,7 +696,7 @@ Next, we're going to set our delegate in our `main` function like so:
 
 ```dart
 void main() {
-  BlocSupervisor().delegate = SimpleBlocDelegate();
+  BlocSupervisor.delegate = SimpleBlocDelegate();
   runApp(App());
 }
 ```
@@ -706,7 +708,7 @@ import 'package:flutter_weather/repositories/repositories.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
-  BlocSupervisor().delegate = SimpleBlocDelegate();
+  BlocSupervisor.delegate = SimpleBlocDelegate();
 
   final WeatherRepository weatherRepository = WeatherRepository(
     weatherApiClient: WeatherApiClient(
@@ -720,7 +722,7 @@ void main() {
 
 ### App Widget
 
-Our `App` widget is going to start off as a `StatelessWidget` which has the `WeatherRepository` injected and builds the `MaterialApp` with our `Weather` widget (which we will create in the next step).
+Our `App` widget is going to start off as a `StatelessWidget` which has the `WeatherRepository` injected and builds the `MaterialApp` with our `Weather` widget (which we will create in the next step). We are using the `BlocProvider` widget to create an instance of our `WeatherBloc` and make it available to the `Weather` widget and its children. In addition, the `BlocProvider` manages building and disposing the `WeatherBloc`.
 
 ```dart
 class App extends StatelessWidget {
@@ -734,8 +736,10 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Weather',
-      home: Weather(
-        weatherRepository: weatherRepository,
+      home: BlocProvider(
+        builder: (context) =>
+            WeatherBloc(weatherRepository: weatherRepository),
+        child: Weather(),
       ),
     );
   }
@@ -746,9 +750,9 @@ class App extends StatelessWidget {
 
 Now we need to create our `Weather` Widget. Go ahead and make a folder called `widgets` inside of `lib` and create a barrel file inside called `widgets.dart`. Next create a file called `weather.dart`.
 
-> Our Weather Widget will be a `StatefulWidget` responsible for creating and disposing a `WeatherBloc`.
+> Our Weather Widget will be a `StatelessWidget` responsible for rendering the various weather weather data.
 
-#### Creating Our Stateful Widget
+#### Creating Our Stateless Widget
 
 ```dart
 import 'package:flutter/material.dart';
@@ -756,31 +760,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_weather/widgets/widgets.dart';
-import 'package:flutter_weather/repositories/repositories.dart';
 import 'package:flutter_weather/blocs/blocs.dart';
 
-class Weather extends StatefulWidget {
-  final WeatherRepository weatherRepository;
-
-  Weather({Key key, @required this.weatherRepository})
-      : assert(weatherRepository != null),
-        super(key: key);
-
-  @override
-  State<Weather> createState() => _WeatherState();
-}
-
-class _WeatherState extends State<Weather> {
-  WeatherBloc _weatherBloc;
-
-  @override
-  void initState() {
-    super.initState();
-    _weatherBloc = WeatherBloc(weatherRepository: widget.weatherRepository);
-  }
-
+class Weather extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final weatherBloc = BlocProvider.of<WeatherBloc>(context);
     return Scaffold(
       appBar: AppBar(
         title: Text('Flutter Weather'),
@@ -795,7 +780,7 @@ class _WeatherState extends State<Weather> {
                 ),
               );
               if (city != null) {
-                _weatherBloc.dispatch(FetchWeather(city: city));
+                weatherBloc.dispatch(FetchWeather(city: city));
               }
             },
           )
@@ -803,7 +788,7 @@ class _WeatherState extends State<Weather> {
       ),
       body: Center(
         child: BlocBuilder(
-          bloc: _weatherBloc,
+          bloc: weatherBloc,
           builder: (_, WeatherState state) {
             if (state is WeatherEmpty) {
               return Center(child: Text('Please Select a Location'));
@@ -846,12 +831,6 @@ class _WeatherState extends State<Weather> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _weatherBloc.dispose();
-    super.dispose();
   }
 }
 ```
@@ -1226,25 +1205,33 @@ Lastly, we need to update our presentation layer to use a `RefreshIndicator` wid
 - Add a Completer
 
 ```dart
+class Weather extends StatefulWidget {
+  State<Weather> createState() => _WeatherState();
+}
+
 class _WeatherState extends State<Weather> {
-  WeatherBloc _weatherBloc;
   Completer<void> _refreshCompleter;
 
   @override
   void initState() {
     super.initState();
     _refreshCompleter = Completer<void>();
-    _weatherBloc = WeatherBloc(weatherRepository: widget.weatherRepository);
   }
-  ...
+
+  @override
+  Widget build(BuildContext) {
+    ...
+  }
 ```
+
+Since our `Weather` widget will need to maintain an instance of a `Completer`, we need to refactor it to be a `StatefulWidget`. Then, we can initialize the `Completer` in `initState`.
 
 - Inside the widgets `build` method, let's wrap the `ListView` in a `RefreshIndicator` widget like so. Then return the `_refreshCompleter.future;` when the `onRefresh` callback happens.
 
 ```dart
 return RefreshIndicator(
   onRefresh: () {
-    _weatherBloc.dispatch(
+    weatherBloc.dispatch(
       RefreshWeather(city: state.weather.location),
     );
     return _refreshCompleter.future;
@@ -1392,12 +1379,29 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
 
 Even though it's a lot of code, the only thing in here is logic to convert a `WeatherCondition` to a new `ThemeState`.
 
-We can now update our `App` widget to create a `ThemeBloc` and use `BlocBuilder` to react to changes in `ThemeState`.
-
-!> Since our `App` widget will now be responsible for creating and disposing of a `ThemeBloc` we need to refactor it into a `StatefulWidget`.
+We can now update our `main` a `ThemeBloc` provide it to our `App`.
 
 ```dart
-class App extends StatefulWidget {
+void main() {
+  final WeatherRepository weatherRepository = WeatherRepository(
+    weatherApiClient: WeatherApiClient(
+      httpClient: http.Client(),
+    ),
+  );
+  BlocSupervisor.delegate = SimpleBlocDelegate();
+  runApp(
+    BlocProvider<ThemeBloc>(
+      builder: (context) => ThemeBloc(),
+      child: App(weatherRepository: weatherRepository),
+    ),
+  );
+}
+```
+
+Our `App` widget can then use `BlocBuilder` to react to changes in `ThemeState`.
+
+```dart
+class App extends StatelessWidget {
   final WeatherRepository weatherRepository;
 
   App({Key key, @required this.weatherRepository})
@@ -1405,35 +1409,21 @@ class App extends StatefulWidget {
         super(key: key);
 
   @override
-  State<App> createState() => _AppState();
-}
-
-class _AppState extends State<App> {
-  ThemeBloc _themeBloc = ThemeBloc();
-
-  @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      bloc: _themeBloc,
-      child: BlocBuilder(
-        bloc: _themeBloc,
-        builder: (_, ThemeState themeState) {
-          return MaterialApp(
-            title: 'Flutter Weather',
-            theme: themeState.theme,
-            home: Weather(
-              weatherRepository: widget.weatherRepository,
-            ),
-          );
-        },
-      ),
+    return BlocBuilder(
+      bloc: BlocProvider.of<ThemeBloc>(context),
+      builder: (_, ThemeState themeState) {
+        return MaterialApp(
+          title: 'Flutter Weather',
+          theme: themeState.theme,
+          home: BlocProvider(
+            builder: (context) =>
+                WeatherBloc(weatherRepository: weatherRepository),
+            child: Weather(),
+          ),
+        );
+      },
     );
-  }
-
-  @override
-  void dispose() {
-    _themeBloc.dispose();
-    super.dispose();
   }
 }
 ```
@@ -1493,29 +1483,22 @@ import 'package:flutter_weather/repositories/repositories.dart';
 import 'package:flutter_weather/blocs/blocs.dart';
 
 class Weather extends StatefulWidget {
-  final WeatherRepository weatherRepository;
-
-  Weather({Key key, @required this.weatherRepository})
-      : assert(weatherRepository != null),
-        super(key: key);
-
   @override
   State<Weather> createState() => _WeatherState();
 }
 
 class _WeatherState extends State<Weather> {
-  WeatherBloc _weatherBloc;
   Completer<void> _refreshCompleter;
 
   @override
   void initState() {
     super.initState();
     _refreshCompleter = Completer<void>();
-    _weatherBloc = WeatherBloc(weatherRepository: widget.weatherRepository);
   }
 
   @override
   Widget build(BuildContext context) {
+    final weatherBloc = BlocProvider.of<WeatherBloc>(context);
     return Scaffold(
       appBar: AppBar(
         title: Text('Flutter Weather'),
@@ -1530,7 +1513,7 @@ class _WeatherState extends State<Weather> {
                 ),
               );
               if (city != null) {
-                _weatherBloc.dispatch(FetchWeather(city: city));
+                weatherBloc.dispatch(FetchWeather(city: city));
               }
             },
           )
@@ -1538,7 +1521,7 @@ class _WeatherState extends State<Weather> {
       ),
       body: Center(
         child: BlocListener(
-          bloc: _weatherBloc,
+          bloc: weatherBloc,
           listener: (BuildContext context, WeatherState state) {
             if (state is WeatherLoaded) {
               BlocProvider.of<ThemeBloc>(context).dispatch(
@@ -1549,7 +1532,7 @@ class _WeatherState extends State<Weather> {
             }
           },
           child: BlocBuilder(
-            bloc: _weatherBloc,
+            bloc: weatherBloc,
             builder: (_, WeatherState state) {
               if (state is WeatherEmpty) {
                 return Center(child: Text('Please Select a Location'));
@@ -1567,7 +1550,7 @@ class _WeatherState extends State<Weather> {
                       color: themeState.color,
                       child: RefreshIndicator(
                         onRefresh: () {
-                          _weatherBloc.dispatch(
+                          weatherBloc.dispatch(
                             RefreshWeather(city: weather.location),
                           );
                           return _refreshCompleter.future;
@@ -1610,18 +1593,12 @@ class _WeatherState extends State<Weather> {
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _weatherBloc.dispose();
-    super.dispose();
-  }
 }
 ```
 
 Since we want to "do something" in response to state changes in our `WeatherBloc`, we are using `BlocListener`. In this case, we are completing and resetting the `Completer` and are also dispatching the `WeatherChanged` event to the `ThemeBloc`.
 
-?> **Tip:** Check out the [BlocListener Recipe](recipesbloclistener.md) for more information about the `BlocListener` widget.
+?> **Tip:** Check out the [SnackBar Recipe](recipesfluttershowsnackbar.md) for more information about the `BlocListener` widget.
 
 We are accessing our `ThemeBloc` via `BlocProvider.of<ThemeBloc>(context)` and are then dispatching a `WeatherChanged` event on each `WeatherLoad`.
 
@@ -1681,56 +1658,33 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
 All we're doing is using `fahrenheit` if `TemperatureUnitsToggled` is dispatched and the current units are `celsius` and vice versa.
 
-Now we need to add our `SettingsBloc` to our `App` widget.
+Now we need to provide our `SettingsBloc` to our `App` widget in `main.dart`.
 
 ```dart
-class App extends StatefulWidget {
-  final WeatherRepository weatherRepository;
-
-  App({Key key, @required this.weatherRepository})
-      : assert(weatherRepository != null),
-        super(key: key);
-
-  @override
-  State<App> createState() => _AppState();
-}
-
-class _AppState extends State<App> {
-  ThemeBloc _themeBloc = ThemeBloc();
-  SettingsBloc _settingsBloc = SettingsBloc();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocProviderTree(
+void main() {
+  final WeatherRepository weatherRepository = WeatherRepository(
+    weatherApiClient: WeatherApiClient(
+      httpClient: http.Client(),
+    ),
+  );
+  BlocSupervisor.delegate = SimpleBlocDelegate();
+  runApp(
+    BlocProviderTree(
       blocProviders: [
-        BlocProvider<ThemeBloc>(bloc: _themeBloc),
-        BlocProvider<SettingsBloc>(bloc: _settingsBloc),
+        BlocProvider<ThemeBloc>(
+          builder: (context) => ThemeBloc(),
+        ),
+        BlocProvider<SettingsBloc>(
+          builder: (context) => SettingsBloc(),
+        ),
       ],
-      child: BlocBuilder(
-        bloc: _themeBloc,
-        builder: (_, ThemeState themeState) {
-          return MaterialApp(
-            title: 'Flutter Weather',
-            theme: themeState.theme,
-            home: Weather(
-              weatherRepository: widget.weatherRepository,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _themeBloc.dispose();
-    _settingsBloc.dispose();
-    super.dispose();
-  }
+      child: App(weatherRepository: weatherRepository),
+    ),
+  );
 }
 ```
 
-Again, we're making `SettingsBloc` globally accessible using `BlocProvider` and we are also disposing it in the `dispose` override. This time, however, since we are exposing more than one Bloc using `BlocProvider` at the same level we can eliminate some nesting by using the `BlocProviderTree` widget.
+Again, we're making `SettingsBloc` globally accessible using `BlocProvider` and we are also disposing it in the `dispose` callback. This time, however, since we are exposing more than one Bloc using `BlocProvider` at the same level we can eliminate some nesting by using the `BlocProviderTree` widget.
 
 Now we need to create our `Settings` widget from which users can toggle the units.
 
@@ -1795,29 +1749,22 @@ import 'package:flutter_weather/repositories/repositories.dart';
 import 'package:flutter_weather/blocs/blocs.dart';
 
 class Weather extends StatefulWidget {
-  final WeatherRepository weatherRepository;
-
-  Weather({Key key, @required this.weatherRepository})
-      : assert(weatherRepository != null),
-        super(key: key);
-
   @override
   State<Weather> createState() => _WeatherState();
 }
 
 class _WeatherState extends State<Weather> {
-  WeatherBloc _weatherBloc;
   Completer<void> _refreshCompleter;
 
   @override
   void initState() {
     super.initState();
     _refreshCompleter = Completer<void>();
-    _weatherBloc = WeatherBloc(weatherRepository: widget.weatherRepository);
   }
 
   @override
   Widget build(BuildContext context) {
+    final weatherBloc = BlocProvider.of<WeatherBloc>(context);
     return Scaffold(
       appBar: AppBar(
         title: Text('Flutter Weather'),
@@ -1843,7 +1790,7 @@ class _WeatherState extends State<Weather> {
                 ),
               );
               if (city != null) {
-                _weatherBloc.dispatch(FetchWeather(city: city));
+                weatherBloc.dispatch(FetchWeather(city: city));
               }
             },
           )
@@ -1851,7 +1798,7 @@ class _WeatherState extends State<Weather> {
       ),
       body: Center(
         child: BlocListener(
-          bloc: _weatherBloc,
+          bloc: weatherBloc,
           listener: (BuildContext context, WeatherState state) {
             if (state is WeatherLoaded) {
               BlocProvider.of<ThemeBloc>(context).dispatch(
@@ -1862,7 +1809,7 @@ class _WeatherState extends State<Weather> {
             }
           },
           child: BlocBuilder(
-            bloc: _weatherBloc,
+            bloc: weatherBloc,
             builder: (_, WeatherState state) {
               if (state is WeatherEmpty) {
                 return Center(child: Text('Please Select a Location'));
@@ -1880,7 +1827,7 @@ class _WeatherState extends State<Weather> {
                       color: themeState.color,
                       child: RefreshIndicator(
                         onRefresh: () {
-                          _weatherBloc.dispatch(
+                          weatherBloc.dispatch(
                             RefreshWeather(city: weather.location),
                           );
                           return _refreshCompleter.future;
@@ -1922,12 +1869,6 @@ class _WeatherState extends State<Weather> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _weatherBloc.dispose();
-    super.dispose();
   }
 }
 ```
